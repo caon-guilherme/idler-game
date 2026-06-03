@@ -10,7 +10,7 @@ const props = defineProps({
   isGateMode: Boolean, // Modo de boas-vindas bloqueante na inicialização
 })
 
-const emit = defineEmits(['close', 'manualSync', 'playOffline'])
+const emit = defineEmits(['close', 'manualSync', 'playOffline', 'logout'])
 
 const mode = ref('login') // 'login', 'register', 'profile'
 const username = ref('')
@@ -102,15 +102,11 @@ async function handleLogout() {
   successMessage.value = ''
   loading.value = true
   try {
-    const { error } = await supabase.auth.signOut()
-    if (error) throw error
+    emit('logout')
     successMessage.value = 'Desconectado com sucesso!'
     email.value = ''
     password.value = ''
     confirmPassword.value = ''
-    setTimeout(() => {
-      emit('close')
-    }, 1000)
   } catch (err) {
     errorMessage.value = err.message || 'Erro ao deslogar.'
   } finally {

@@ -7,6 +7,7 @@ import EquipmentPanel from './components/EquipmentPanel.vue'
 import PvMPanel from './components/PvMPanel.vue'
 import ConsolePanel from './components/ConsolePanel.vue'
 import AuthModal from './components/AuthModal.vue'
+import { supabase } from './supabase'
 
 const {
   skills, inventory, logs, RECIPES, recipeColor,
@@ -36,6 +37,12 @@ watch(user, (newUser) => {
     guestMode.value = false
   }
 })
+
+async function triggerLogout() {
+  await saveGame(true)
+  await supabase.auth.signOut()
+  isAuthModalOpen.value = false
+}
 
 const skillList = [
   { id: 'woodcutting', icon: '🪓', color: '#00ff9f' },
@@ -208,6 +215,7 @@ function onDragEnd() {
     @close="isAuthModalOpen = false"
     @manualSync="saveGame(true)"
     @playOffline="guestMode = true"
+    @logout="triggerLogout"
   />
 </template>
 

@@ -564,6 +564,7 @@ export function useGameState() {
 
   let saveTimer = null
   let authSubscription = null
+  let isLoaded = false
 
   onMounted(() => {
     loadGame()
@@ -577,19 +578,24 @@ export function useGameState() {
     supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
       session.value = initialSession
       user.value = initialSession?.user ?? null
-      if (user.value) {
+      if (user.value && !isLoaded) {
+        isLoaded = true
         loadGameFromCloud()
       }
     })
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, newSession) => {
       session.value = newSession
       user.value = newSession?.user ?? null
       if (newSession) {
-        loadGameFromCloud()
+        if (!isLoaded) {
+          isLoaded = true
+          loadGameFromCloud()
+        }
       } else {
         // Se deslogar, mantém o progresso local
         lastCloudSaveTime.value = null
+        isLoaded = false
       }
     })
     authSubscription = subscription
