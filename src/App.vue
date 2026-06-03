@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useGameState } from './composables/useGameState.js'
 import LoadingScreen from './components/LoadingScreen.vue'
 import SkillPanel from './components/SkillPanel.vue'
@@ -22,6 +22,15 @@ const {
 } = useGameState()
 
 const isAuthModalOpen = ref(false)
+const guestMode = ref(false)
+
+const isGateActive = computed(() => !user.value && !guestMode.value)
+
+watch(user, (newUser) => {
+  if (newUser) {
+    guestMode.value = false
+  }
+})
 
 const skillList = [
   { id: 'woodcutting', icon: '🪓', color: '#00ff9f' },
@@ -186,12 +195,14 @@ function onDragEnd() {
   </div>
 
   <AuthModal
-    :isOpen="isAuthModalOpen"
+    :isOpen="isAuthModalOpen || isGateActive"
+    :isGateMode="isGateActive"
     :user="user"
     :lastCloudSaveTime="lastCloudSaveTime"
     :isCloudLoading="isCloudLoading"
     @close="isAuthModalOpen = false"
     @manualSync="saveGame(true)"
+    @playOffline="guestMode = true"
   />
 </template>
 
