@@ -1,0 +1,35 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+:root {
+  --bg-primary: #060504;
+  --bg-secondary: rgba(15, 10, 8, 0.7);
+  --text-muted: #8b7355;
+  --accent-gold: #ffd700;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Outfit', sans-serif;
+  background-color: #060504;
+  background-image:
+    radial-gradient(at 10% 20%, rgba(139, 107, 58, 0.05) 0px, transparent 50%),
+    radial-gradient(at 90% 80%, rgba(255, 215, 0, 0.03) 0px, transparent 50%);
+  color: #c0a88a;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+}
+
+#app {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
