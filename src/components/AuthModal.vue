@@ -13,12 +13,14 @@ const props = defineProps({
 const emit = defineEmits(['close', 'manualSync', 'playOffline'])
 
 const mode = ref('login') // 'login', 'register', 'profile'
+const username = ref('')
 const email = ref('')
 const password = ref('')
 const confirmPassword = ref('')
 const loading = ref(false)
 const errorMessage = ref('')
 const successMessage = ref('')
+
 
 async function handleLogin() {
   errorMessage.value = ''
@@ -48,7 +50,7 @@ async function handleLogin() {
 async function handleRegister() {
   errorMessage.value = ''
   successMessage.value = ''
-  if (!email.value || !password.value || !confirmPassword.value) {
+  if (!email.value || !password.value || !confirmPassword.value || !username.value) {
     errorMessage.value = 'Por favor, preencha todos os campos.'
     return
   }
@@ -61,6 +63,11 @@ async function handleRegister() {
     const { error } = await supabase.auth.signUp({
       email: email.value,
       password: password.value,
+      options: {
+        data: {
+          username: username.value
+        }
+      }
     })
     if (error) throw error
     successMessage.value = 'Cadastro realizado! Verifique seu e-mail para confirmação se necessário.'
@@ -137,6 +144,10 @@ async function handleLogout() {
 
         <!-- MODO: USUÁRIO LOGADO -->
         <div v-if="user" class="logged-in-view">
+          <div class="info-group">
+            <span class="info-label">Nome:</span>
+            <span class="info-value">{{ user.user_metadata?.username || user.user_metadata?.full_name || user.user_metadata?.name || user.email.split('@')[0] }}</span>
+          </div>
           <div class="info-group">
             <span class="info-label">E-mail:</span>
             <span class="info-value">{{ user.email }}</span>
@@ -225,6 +236,16 @@ async function handleLogout() {
         <!-- MODO: CADASTRO -->
         <div v-else class="auth-wrapper">
           <form @submit.prevent="handleRegister" class="auth-form">
+            <div class="form-group">
+              <label for="reg-username">Nome de Usuário (Username)</label>
+              <input 
+                id="reg-username" 
+                type="text" 
+                v-model="username" 
+                placeholder="Seu apelido no jogo" 
+                required
+              />
+            </div>
             <div class="form-group">
               <label for="reg-email">E-mail</label>
               <input 

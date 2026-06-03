@@ -26,6 +26,11 @@ const guestMode = ref(false)
 
 const isGateActive = computed(() => !user.value && !guestMode.value)
 
+const displayName = computed(() => {
+  if (!user.value) return ''
+  return user.value.user_metadata?.username || user.value.user_metadata?.full_name || user.value.user_metadata?.name || user.value.email.split('@')[0]
+})
+
 watch(user, (newUser) => {
   if (newUser) {
     guestMode.value = false
@@ -97,7 +102,7 @@ function onDragEnd() {
         <span>🔮 {{ armorFragments }}</span>
       </div>
       <button class="account-btn" @click="isAuthModalOpen = true">
-        <span v-if="user">🛡️ {{ user.email.split('@')[0] }}</span>
+        <span v-if="user">🛡️ {{ displayName }}</span>
         <span v-else>⚔️ Conta</span>
       </button>
     </header>

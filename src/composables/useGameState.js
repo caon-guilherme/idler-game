@@ -6,7 +6,7 @@ const SAVE_KEY = 'rpg_idle_save'
 const randomInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min
 
 function createSkill(name, icon, color) {
-  const level = ref(1)
+  const level = ref(0)
   const xp = ref(0)
   const maxXp = ref(30)
   const xpProgress = computed(() => (xp.value / maxXp.value) * 100)
