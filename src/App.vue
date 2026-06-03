@@ -6,6 +6,7 @@ import SkillPanel from './components/SkillPanel.vue'
 import EquipmentPanel from './components/EquipmentPanel.vue'
 import PvMPanel from './components/PvMPanel.vue'
 import ConsolePanel from './components/ConsolePanel.vue'
+import AuthModal from './components/AuthModal.vue'
 
 const {
   skills, inventory, logs, RECIPES, recipeColor,
@@ -17,7 +18,10 @@ const {
   fightSuccessChance, startFight, cancelFight, selectMonster,
   selectSkill, selectRecipe, executeAction, toggleIdle, cancelCraft, cancelArmorCraft,
   canCraftArmor, executeCraftArmor, equipArmor, unequipArmor,
+  user, session, isCloudLoading, lastCloudSaveTime, saveGame
 } = useGameState()
+
+const isAuthModalOpen = ref(false)
 
 const skillList = [
   { id: 'woodcutting', icon: '🪓', color: '#00ff9f' },
@@ -83,6 +87,10 @@ function onDragEnd() {
       <div class="char-frags">
         <span>🔮 {{ armorFragments }}</span>
       </div>
+      <button class="account-btn" @click="isAuthModalOpen = true">
+        <span v-if="user">🛡️ {{ user.email.split('@')[0] }}</span>
+        <span v-else>⚔️ Conta</span>
+      </button>
     </header>
 
     <main class="main-panel">
@@ -176,6 +184,15 @@ function onDragEnd() {
       <ConsolePanel :logs="logs" />
     </main>
   </div>
+
+  <AuthModal
+    :isOpen="isAuthModalOpen"
+    :user="user"
+    :lastCloudSaveTime="lastCloudSaveTime"
+    :isCloudLoading="isCloudLoading"
+    @close="isAuthModalOpen = false"
+    @manualSync="saveGame(true)"
+  />
 </template>
 
 <style>
@@ -326,5 +343,25 @@ function onDragEnd() {
   0% { text-shadow: 0 0 0 rgba(255, 215, 0, 0); }
   50% { text-shadow: 0 0 20px rgba(255, 215, 0, 0.8), 0 0 40px rgba(255, 215, 0, 0.4); }
   100% { text-shadow: 0 0 0 rgba(255, 215, 0, 0); }
+}
+
+.account-btn {
+  background: linear-gradient(180deg, #8b6b3a, #5c4220);
+  border: 2px solid #ffd700;
+  color: #fff;
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-left: 8px;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+.account-btn:hover {
+  background: linear-gradient(180deg, #a68146, #70522a);
+  box-shadow: 0 0 8px rgba(255, 215, 0, 0.4);
 }
 </style>

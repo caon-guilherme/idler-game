@@ -1,4 +1,6 @@
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { supabase } from '../supabase'
+
 
 const SAVE_KEY = 'rpg_idle_save'
 const randomInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min
@@ -441,7 +443,40 @@ export function useGameState() {
     else stopAutoplay()
   }
 
-  function saveGame() {
+  const user = ref(null)
+  const session = ref(null)
+  const isCloudLoading = ref(false)
+  const lastCloudSaveTime = ref(null)
+
+  function applySaveData(data) {
+    if (!data) return
+    if (data.armorFragments !== undefined) armorFragments.value = data.armorFragments
+    if (data.craftedArmor) craftedArmor.value = data.craftedArmor
+    if (data.equipped) {
+      for (const slot of ARMOR_SLOTS) {
+        const id = data.equipped[slot]
+        equipped[slot] = id ? ARMOR_PIECES.find(p => p.id === id) || null : null
+      }
+    }
+    if (data.inventory) {
+      // Reset inventory and merge
+      Object.assign(inventory.value, { logs: 0, ores: 0, fish: 0, food: 0 }, data.inventory)
+    }
+    if (data.logs) logs.value = [...data.logs]
+    if (data.skills) {
+      for (const [id, s] of Object.entries(data.skills)) {
+        if (skills[id]) {
+          skills[id].level = s.level
+          skills[id].xp = s.xp
+          skills[id].maxXp = s.maxXp
+        }
+      }
+    }
+  }
+
+  let lastCloudSave = 0
+
+  async function saveGame(forceCloud = false) {
     const data = {
       skills: {},
       inventory: inventory.value,
@@ -460,52 +495,114 @@ export function useGameState() {
     for (const slot of ARMOR_SLOTS) {
       data.equipped[slot] = equipped[slot] ? equipped[slot].id : null
     }
+
     try {
       localStorage.setItem(SAVE_KEY, JSON.stringify(data))
     } catch {}
+
+    if (user.value) {
+      const now = Date.now()
+      if (forceCloud || now - lastCloudSave >= 60000) {
+        lastCloudSave = now
+        try {
+          const { error } = await supabase
+            .from('player_saves')
+            .upsert({
+              user_id: user.value.id,
+              save_data: data,
+              updated_at: new Date().toISOString()
+            })
+          if (error) {
+            console.error('Erro ao sincronizar nuvem:', error.message)
+          } else {
+            lastCloudSaveTime.value = new Date().toLocaleString()
+          }
+        } catch (err) {
+          console.error(err)
+        }
+      }
+    }
   }
 
   function loadGame() {
     try {
       const raw = localStorage.getItem(SAVE_KEY)
       if (!raw) return
-      const data = JSON.parse(raw)
-      if (data.armorFragments) armorFragments.value = data.armorFragments
-      if (data.craftedArmor) craftedArmor.value = data.craftedArmor
-      if (data.equipped) {
-        for (const slot of ARMOR_SLOTS) {
-          const id = data.equipped[slot]
-          if (id) {
-            const piece = ARMOR_PIECES.find(p => p.id === id)
-            if (piece) equipped[slot] = piece
-          }
-        }
-      }
-      if (data.inventory) Object.assign(inventory.value, data.inventory)
-      if (data.logs) logs.value = data.logs
-      if (data.skills) {
-        for (const [id, s] of Object.entries(data.skills)) {
-          if (skills[id]) {
-            skills[id].level = s.level
-            skills[id].xp = s.xp
-            skills[id].maxXp = s.maxXp
-          }
-        }
-      }
+      applySaveData(JSON.parse(raw))
     } catch {}
   }
 
+  async function loadGameFromCloud() {
+    if (!user.value) return
+    isCloudLoading.value = true
+    try {
+      const { data, error } = await supabase
+        .from('player_saves')
+        .select('save_data, updated_at')
+        .eq('user_id', user.value.id)
+        .maybeSingle()
+
+      if (error) {
+        addLog('Erro ao carregar save da nuvem.', 'system')
+        console.error(error)
+      } else if (data && data.save_data) {
+        applySaveData(data.save_data)
+        if (data.updated_at) {
+          lastCloudSaveTime.value = new Date(data.updated_at).toLocaleString()
+        }
+        addLog('Save carregado da nuvem com sucesso!', 'blessing')
+      } else {
+        addLog('Nenhum save em nuvem encontrado. Criando save inicial...', 'system')
+        await saveGame(true)
+      }
+    } catch (err) {
+      console.error(err)
+    } finally {
+      isCloudLoading.value = false
+    }
+  }
+
   let saveTimer = null
+  let authSubscription = null
+
   onMounted(() => {
     loadGame()
-    saveTimer = setInterval(saveGame, 5000)
+    saveTimer = setInterval(() => saveGame(false), 5000)
+    
     document.addEventListener('visibilitychange', () => {
-      if (document.hidden) saveGame()
+      if (document.hidden) saveGame(true)
     })
+
+    // Listen to Supabase Auth state changes
+    supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
+      session.value = initialSession
+      user.value = initialSession?.user ?? null
+      if (user.value) {
+        loadGameFromCloud()
+      }
+    })
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      session.value = newSession
+      user.value = newSession?.user ?? null
+      if (newSession) {
+        loadGameFromCloud()
+      } else {
+        // Se deslogar, mantém o progresso local
+        lastCloudSaveTime.value = null
+      }
+    })
+    authSubscription = subscription
   })
+
   onUnmounted(() => {
     if (saveTimer) clearInterval(saveTimer)
-    document.removeEventListener('visibilitychange', saveGame)
+    document.removeEventListener('visibilitychange', () => {
+      if (document.hidden) saveGame(true)
+    })
+    if (authSubscription) {
+      authSubscription.unsubscribe()
+    }
   })
 
   return {
@@ -518,5 +615,6 @@ export function useGameState() {
     fightSuccessChance, startFight, cancelFight, selectMonster,
     selectSkill, selectRecipe, executeAction, toggleIdle, cancelCraft, cancelArmorCraft,
     canCraftArmor, executeCraftArmor, equipArmor, unequipArmor,
+    user, session, isCloudLoading, lastCloudSaveTime, saveGame, loadGameFromCloud
   }
 }
